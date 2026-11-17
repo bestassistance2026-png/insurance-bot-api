@@ -3,7 +3,6 @@ uvicorn[standard]
 python-multipart
 torch
 transformers
-easyocr
 opencv-python-headless
 numpy
 pillow
