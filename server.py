@@ -38,7 +38,7 @@ FALLBACK_EMAIL = "support@company.com"
 # ⚠️ هام: نحتاج مفتاح API مجاني من Hugging Face ليعمل CLIP
 # اذهب إلى huggingface.co، وأنشئ حساباً، ثم Settings -> Access Tokens -> New Token (Read)
 # وضع المفتاح هنا:
-HUGGINGFACE_TOKEN = "ضع_المفتاح_هنا" 
+HUGGINGFACE_TOKEN = "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" 
 
 # -------------------- قاموس الشركات --------------------
 INSURANCE_COMPANIES = {
