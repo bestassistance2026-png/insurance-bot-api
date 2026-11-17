@@ -146,28 +146,41 @@ def check_image_is_card_hf(image_path):
     API_URL = "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32"
     headers = {"Authorization": f"Bearer {HUGGINGFACE_TOKEN}"}
     
-    labels = [
+    positive_labels = [
         "a health insurance card", "a medical insurance document", "a plastic ID card with text and logo",
-        "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية",
+        "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية"
+    ]
+    negative_labels = [
         "a car engine", "a laptop screen showing a document", "a landscape photo", "a person selfie", 
         "a building", "a food plate", "a pet animal", "a calculator", "a wooden table", "a wall",
-        "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي"
+        "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي", "keyboard", "لوحة مفاتيح"
     ]
+    
+    all_labels = positive_labels + negative_labels
     
     try:
         with open(image_path, "rb") as f:
             data = f.read()
             
-        payload = {"inputs": data, "parameters": {"candidate_labels": labels}}
+        payload = {"inputs": data, "parameters": {"candidate_labels": all_labels}}
         response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             results = response.json()
-            best_label = results[0]['label']
-            score = results[0]['score']
-            logger.info(f"⚖️ CLIP (API) -> {best_label} ({score:.2%})")
             
-            if best_label in labels[7:]:
+            # جمع نسب القبول ونسب الرفض
+            pos_score = 0.0
+            neg_score = 0.0
+            
+            for item in results:
+                if item['label'] in positive_labels:
+                    pos_score += item['score']
+                else:
+                    neg_score += item['score']
+            
+            logger.info(f"⚖️ CLIP (API) -> بطاقة: {pos_score:.2%} | غير بطاقة: {neg_score:.2%}")
+            
+            if neg_score > pos_score:
                 return False
             return True
         else:
@@ -176,7 +189,6 @@ def check_image_is_card_hf(image_path):
     except Exception as e:
         logger.error(f"خطأ في الاتصال بـ HuggingFace: {e}")
         return True
-
 # ==================================================================
 # إرسال الإيميل
 # ==================================================================
