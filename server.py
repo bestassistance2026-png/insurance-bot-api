@@ -6,7 +6,6 @@ import logging
 import sqlite3
 import smtplib
 import ssl
-import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -19,11 +18,20 @@ import uvicorn
 
 # استيراد مكتبات الصور
 try:
+    from PIL import Image
     import cv2
     import numpy as np
     CV_AVAILABLE = True
 except ImportError:
     CV_AVAILABLE = False
+
+# استيراد الذكاء الاصطناعي المحلي (CLIP)
+try:
+    from transformers import CLIPProcessor, CLIPModel
+    import torch
+    CLIP_AVAILABLE = True
+except ImportError:
+    CLIP_AVAILABLE = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,10 +39,8 @@ logger = logging.getLogger(__name__)
 # ==================================================================
 # 👈 1. الإعدادات الخاصة بك (ضع معلوماتك هنا)
 # ==================================================================
-EMAIL_ADDRESS = 'amerba2011@gmail.com'     # إيميلك
-EMAIL_PASSWORD = 'nqiy hIqa kvfw ppom'       # كلمة مرور التطبيقات (App Password)
-HUGGINGFACE_TOKEN = "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" # مفتاح Hugging Face الذي قمت بإنشائه
-
+EMAIL_ADDRESS = 'amerba2011@gmail.com'      # إيميلك
+EMAIL_PASSWORD = 'nqiy hIqa kvfw ppom'       # كلمة مرور التطبيقات
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 FALLBACK_EMAIL = "support@company.com"
@@ -50,7 +56,7 @@ EMAIL_RECIPIENTS = {
 }
 
 # ==================================================================
-# 👈 3. قاموس شركات التأمين (تم إصلاحه بالكامل)
+# 👈 3. قاموس شركات التأمين
 # ==================================================================
 INSURANCE_COMPANIES = {
     "1": {"display_name_ar": "الشركة الأولى", "display_name_en": "Company 1", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy"]},
@@ -78,7 +84,49 @@ def init_db():
     conn.commit(); conn.close()
 
 # ==================================================================
-# خوارزمية SIFT (لقراءة الشعار - خفيفة جداً)
+# نموذج CLIP المحلي (للفحص البصري)
+# ==================================================================
+CLIP_MODEL = None
+CLIP_PROCESSOR = None
+
+POSITIVE_PROMPTS = ["a health insurance card", "a medical insurance document", "a plastic ID card with text and logo", "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية"]
+NEGATIVE_PROMPTS = ["a car engine", "a laptop screen showing a document", "a landscape photo", "a person selfie", "a building", "a food plate", "a pet animal", "a calculator", "a wooden table", "a wall", "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي", "keyboard", "لوحة مفاتيح"]
+
+def init_ai_models():
+    global CLIP_MODEL, CLIP_PROCESSOR
+    if CLIP_AVAILABLE:
+        try:
+            logger.info("🧠 جاري تحميل CLIP محلياً...")
+            CLIP_MODEL = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+            CLIP_PROCESSOR = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+            CLIP_MODEL.eval()
+            logger.info("✅ CLIP جاهز")
+        except Exception as e: 
+            logger.error(f"❌ فشل تحميل CLIP: {e}")
+
+def check_image_is_card(image_path):
+    if CLIP_MODEL is None: return True
+    try:
+        image = Image.open(image_path).convert("RGB")
+        all_prompts = POSITIVE_PROMPTS + NEGATIVE_PROMPTS
+        num_positive = len(POSITIVE_PROMPTS)
+        
+        inputs = CLIP_PROCESSOR(text=all_prompts, images=image, return_tensors="pt", padding=True)
+        with torch.no_grad():
+            outputs = CLIP_MODEL(**inputs)
+            probs = outputs.logits_per_image.softmax(dim=1)[0]
+        
+        pos_score = float(torch.sum(probs[:num_positive]))
+        neg_score = float(torch.sum(probs[num_positive:]))
+        
+        logger.info(f"⚖️ CLIP -> بطاقة: {pos_score:.2%} | غير بطاقة: {neg_score:.2%}")
+        return pos_score > neg_score
+    except Exception as e:
+        logger.error(f"خطأ في CLIP: {e}")
+        return True
+
+# ==================================================================
+# خوارزمية SIFT (لقراءة الشعار)
 # ==================================================================
 SIFT_CACHE = {}
 LOGO_TO_COMPANY = {}
@@ -112,6 +160,7 @@ def identify_company_by_logo(image_path):
         except: detector, norm = cv2.ORB_create(nfeatures=1000), cv2.NORM_HAMMING
         card_kp, card_des = detector.detectAndCompute(img, None)
         if card_des is None or len(card_kp) < 10: return None, None
+        
         company_best = {}
         matcher = cv2.BFMatcher(norm)
         for logo_file, logo_data in SIFT_CACHE.items():
@@ -120,11 +169,13 @@ def identify_company_by_logo(image_path):
             except: continue
             good = [pair[0] for pair in raw if len(pair) >= 2 and pair[0].distance < 0.75 * pair[1].distance]
             if len(good) < 8: continue
+            
             src = np.float32([logo_data['keypoints'][m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
             dst = np.float32([card_kp[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
             M, mask = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
             inliers = int(mask.sum()) if M is not None and mask is not None else 0
             if inliers > company_best.get(comp_key, 0): company_best[comp_key] = inliers
+            
         if not company_best: return None, None
         sorted_scores = sorted(company_best.items(), key=lambda x: -x[1])
         best_comp, best_score = sorted_scores[0]
@@ -135,60 +186,6 @@ def identify_company_by_logo(image_path):
         logger.error(f"خطأ في SIFT: {e}")
         return None, None
 
-# ==================================================================
-# الذكاء الاصطناعي (عبر Hugging Face API لتوفير الذاكرة)
-# ==================================================================
-def check_image_is_card_hf(image_path):
-    if HUGGINGFACE_TOKEN == "hf_xxxxxxxxxxxxxxxxxxxx":
-        logger.warning("⚠️ لم يتم وضع مفتاح HuggingFace، سيتم تخطي الفحص البصري.")
-        return True
-
-    API_URL = "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32"
-    headers = {"Authorization": f"Bearer {HUGGINGFACE_TOKEN}"}
-    
-    positive_labels = [
-        "a health insurance card", "a medical insurance document", "a plastic ID card with text and logo",
-        "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية"
-    ]
-    negative_labels = [
-        "a car engine", "a laptop screen showing a document", "a landscape photo", "a person selfie", 
-        "a building", "a food plate", "a pet animal", "a calculator", "a wooden table", "a wall",
-        "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي", "keyboard", "لوحة مفاتيح"
-    ]
-    
-    all_labels = positive_labels + negative_labels
-    
-    try:
-        with open(image_path, "rb") as f:
-            data = f.read()
-            
-        payload = {"inputs": data, "parameters": {"candidate_labels": all_labels}}
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            results = response.json()
-            
-            # جمع نسب القبول ونسب الرفض
-            pos_score = 0.0
-            neg_score = 0.0
-            
-            for item in results:
-                if item['label'] in positive_labels:
-                    pos_score += item['score']
-                else:
-                    neg_score += item['score']
-            
-            logger.info(f"⚖️ CLIP (API) -> بطاقة: {pos_score:.2%} | غير بطاقة: {neg_score:.2%}")
-            
-            if neg_score > pos_score:
-                return False
-            return True
-        else:
-            logger.error(f"خطأ في API: {response.text}")
-            return True
-    except Exception as e:
-        logger.error(f"خطأ في الاتصال بـ HuggingFace: {e}")
-        return True
 # ==================================================================
 # إرسال الإيميل
 # ==================================================================
@@ -231,6 +228,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def startup_event():
     init_db()
     build_logo_index()
+    init_ai_models()
 
 @app.get("/")
 async def root(): return {"message": "Insurance Bot API is running."}
@@ -243,7 +241,7 @@ async def api_validate_card(file: UploadFile = File(...)):
     temp_path = os.path.join(tempfile.gettempdir(), f"upload_{int(time.time())}.jpg")
     with open(temp_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
     
-    if not check_image_is_card_hf(temp_path):
+    if not check_image_is_card(temp_path):
         os.remove(temp_path)
         return {"status": "error", "message": "الصورة لا تبدو كبطاقة تأمين."}
         
