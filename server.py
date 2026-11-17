@@ -28,44 +28,58 @@ except ImportError:
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# -------------------- الإعدادات الخاصة بك --------------------
-EMAIL_ADDRESS = 'amerba2011@gmail.com'      # 👈 ضع إيميلك هنا
-EMAIL_PASSWORD = 'nqiy hlqa kvfw ppom'        # 👈 ضع كلمة مرور التطبيقات هنا
+# ==================================================================
+# 👈 1. الإعدادات الخاصة بك (ضع معلوماتك هنا)
+# ==================================================================
+EMAIL_ADDRESS = 'amerba2011@gmail.com'     # إيميلك
+EMAIL_PASSWORD = 'nqiy hIqa kvfw ppom'       # كلمة مرور التطبيقات (App Password)
+HUGGINGFACE_TOKEN = "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" # مفتاح Hugging Face الذي قمت بإنشائه
+
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 FALLBACK_EMAIL = "support@company.com"
 
-# ⚠️ هام: نحتاج مفتاح API مجاني من Hugging Face ليعمل CLIP
-# اذهب إلى huggingface.co، وأنشئ حساباً، ثم Settings -> Access Tokens -> New Token (Read)
-# وضع المفتاح هنا:
-HUGGINGFACE_TOKEN = "ضع_المفتاح_هنا" 
-
-# -------------------- قاموس الشركات --------------------
-INSURANCE_COMPANIES = {
-   INSURANCE_COMPANIES = {
-    INSURANCE_COMPANIES = {
-    "1": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "2": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "3": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "4": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "5": {"display_name_ar": "", "display_name_en": "", "logo_files": ["6.png", "13.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "6": {"display_name_ar": "", "display_name_en": "", "logo_files": ["11.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "7": {"display_name_ar": "", "display_name_en": "", "logo_files": ["10.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "8": {"display_name_ar": "", "display_name_en": "", "logo_files": ["12.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "9": {"display_name_ar": "", "display_name_en": "", "logo_files": ["2.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "10": {"display_name_ar": "", "display_name_en": "", "logo_files": ["8.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "11": {"display_name_ar": "", "display_name_en": "", "logo_files": ["5.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "12": {"display_name_ar": "", "display_name_en": "", "logo_files": ["4.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+# ==================================================================
+# 👈 2. إيميلات الخدمات (حسب الأزرار)
+# ==================================================================
+EMAIL_RECIPIENTS = {
+    'btn1': ['amershaar24@gmail.com'], 
+    'btn2': ['amershaar24@gmail.com'], 
+    'btn3': ['amershaar24@gmail.com'], 
+    'btn4': ['amershaar24@gmail.com']
 }
-EMAIL_RECIPIENTS = {'btn1': ['amershaar24@gmail.com'], 'btn2': ['amershaar24@gmail.com'], 'btn3': ['amershaar24@gmail.com'], 'btn4': ['amershaar24@gmail.com']}
 
+# ==================================================================
+# 👈 3. قاموس شركات التأمين (تم إصلاحه بالكامل)
+# ==================================================================
+INSURANCE_COMPANIES = {
+    "1": {"display_name_ar": "الشركة الأولى", "display_name_en": "Company 1", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "2": {"display_name_ar": "الشركة الثانية", "display_name_en": "Company 2", "logo_files": ["1.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "3": {"display_name_ar": "الشركة الثالثة", "display_name_en": "Company 3", "logo_files": ["9.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "4": {"display_name_ar": "الشركة الرابعة", "display_name_en": "Company 4", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "5": {"display_name_ar": "الشركة الخامسة", "display_name_en": "Company 5", "logo_files": ["6.png", "13.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "6": {"display_name_ar": "الشركة السادسة", "display_name_en": "Company 6", "logo_files": ["11.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "7": {"display_name_ar": "الشركة السابعة", "display_name_en": "Company 7", "logo_files": ["10.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "8": {"display_name_ar": "الشركة الثامنة", "display_name_en": "Company 8", "logo_files": ["12.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "9": {"display_name_ar": "الشركة التاسعة", "display_name_en": "Company 9", "logo_files": ["2.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "10": {"display_name_ar": "الشركة العاشرة", "display_name_en": "Company 10", "logo_files": ["8.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "11": {"display_name_ar": "الشركة الحادية عشر", "display_name_en": "Company 11", "logo_files": ["5.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "12": {"display_name_ar": "الشركة الثانية عشر", "display_name_en": "Company 12", "logo_files": ["4.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+}
+
+# ==================================================================
+# قاعدة البيانات
+# ==================================================================
 def init_db():
     conn = sqlite3.connect('conversations.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS requests (conv_id TEXT PRIMARY KEY, service_id TEXT, insured_id TEXT, user_name TEXT, company_name TEXT, timestamp REAL)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS requests 
+                 (conv_id TEXT PRIMARY KEY, service_id TEXT, insured_id TEXT, user_name TEXT, company_name TEXT, timestamp REAL)''')
     conn.commit(); conn.close()
 
-# -------------------- SIFT (خفيف جداً ولا يستهلك ذاكرة) --------------------
+# ==================================================================
+# خوارزمية SIFT (لقراءة الشعار - خفيفة جداً)
+# ==================================================================
 SIFT_CACHE = {}
 LOGO_TO_COMPANY = {}
 MIN_INLIERS = 25
@@ -87,7 +101,7 @@ def build_logo_index():
                 SIFT_CACHE[logo_file] = {'keypoints': kp, 'descriptors': des}
                 LOGO_TO_COMPANY[logo_file] = comp_key
                 total += 1
-    logger.info(f"📚 تم فهرسة {total} شعار")
+    logger.info(f"📚 تم فهرسة {total} شعار بنجاح")
 
 def identify_company_by_logo(image_path):
     if not CV_AVAILABLE or not SIFT_CACHE: return None, None
@@ -117,11 +131,15 @@ def identify_company_by_logo(image_path):
         second_score = sorted_scores[1][1] if len(sorted_scores) > 1 else 0
         if best_score < MIN_INLIERS or (second_score > 0 and best_score < second_score * 1.3): return None, None
         return best_comp, INSURANCE_COMPANIES[best_comp]
-    except: return None, None
+    except Exception as e:
+        logger.error(f"خطأ في SIFT: {e}")
+        return None, None
 
-# -------------------- CLIP API (عبر Hugging Face) --------------------
+# ==================================================================
+# الذكاء الاصطناعي (عبر Hugging Face API لتوفير الذاكرة)
+# ==================================================================
 def check_image_is_card_hf(image_path):
-    if HUGGINGFACE_TOKEN == "ضع_المفتاح_هنا":
+    if HUGGINGFACE_TOKEN == "hf_xxxxxxxxxxxxxxxxxxxx":
         logger.warning("⚠️ لم يتم وضع مفتاح HuggingFace، سيتم تخطي الفحص البصري.")
         return True
 
@@ -145,23 +163,23 @@ def check_image_is_card_hf(image_path):
         
         if response.status_code == 200:
             results = response.json()
-            # النتيجة تأتي كقائمة مرتبة بأعلى نسبة تشابه
             best_label = results[0]['label']
             score = results[0]['score']
             logger.info(f"⚖️ CLIP (API) -> {best_label} ({score:.2%})")
             
-            # إذا كان أفضل وصف هو أحد أوصاف الرفض
-            if best_label in labels[7:]: # أوصاف الرفض تبدأ من العنصر رقم 7
+            if best_label in labels[7:]:
                 return False
             return True
         else:
             logger.error(f"خطأ في API: {response.text}")
-            return True # نمرر الصورة في حال فشل الاتصال
+            return True
     except Exception as e:
         logger.error(f"خطأ في الاتصال بـ HuggingFace: {e}")
         return True
 
-# -------------------- إرسال الإيميل --------------------
+# ==================================================================
+# إرسال الإيميل
+# ==================================================================
 def send_email(recipients, subject, user_name, service_name, insured_id, company_name, messages, attachments):
     try:
         if isinstance(recipients, str): recipients = [recipients]
@@ -191,7 +209,9 @@ def send_email(recipients, subject, user_name, service_name, insured_id, company
         return True, "تم الإرسال"
     except Exception as e: return False, str(e)
 
-# -------------------- الخادم (FastAPI) --------------------
+# ==================================================================
+# الخادم (FastAPI)
+# ==================================================================
 app = FastAPI(title="Insurance Bot API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
