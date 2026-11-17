@@ -1,8 +1,6 @@
 fastapi
 uvicorn[standard]
 python-multipart
-torch
-transformers
 opencv-python-headless
 numpy
-pillow
+requests
