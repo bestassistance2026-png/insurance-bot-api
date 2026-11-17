@@ -57,7 +57,6 @@ INSURANCE_COMPANIES = {
     "11": {"display_name_ar": "", "display_name_en": "", "logo_files": ["5.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "12": {"display_name_ar": "", "display_name_en": "", "logo_files": ["4.png"], "emails": ["AShaar@best-assistance.net.sy"]},
 }
-
 EMAIL_RECIPIENTS = {'btn1': ['amershaar24@gmail.com'], 'btn2': ['amershaar24@gmail.com'], 'btn3': ['amershaar24@gmail.com'], 'btn4': ['amershaar24@gmail.com']}
 
 def init_db():
