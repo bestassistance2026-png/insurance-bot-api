@@ -4,8 +4,6 @@ import tempfile
 import shutil
 import logging
 import sqlite3
-import base64
-import re
 import smtplib
 import ssl
 from email.mime.text import MIMEText
@@ -13,9 +11,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from email.header import Header
-from email.utils import formataddr, formatdate
+from email.utils import formataddr
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -36,13 +34,6 @@ try:
 except ImportError:
     CLIP_AVAILABLE = False
 
-try:
-    import easyocr
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
-
-# -------------------- إعدادات التسجيل --------------------
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -55,10 +46,10 @@ FALLBACK_EMAIL = "support@company.com"
 
 # -------------------- قاموس الشركات --------------------
 INSURANCE_COMPANIES = {
-    "آروب للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "المتحدة للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "الاسلامية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "العربية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "آروب للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": [""]},
+    "المتحدة للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": [""]},
+    "لاسلامية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": [""]},
+    "العربية للتأمين ": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "الكويتية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["6.png", "13.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "اورينت للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["11.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "العقيلة للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["10.png"], "emails": ["AShaar@best-assistance.net.sy"]},
@@ -80,11 +71,10 @@ def init_db():
     conn.commit(); conn.close()
 
 # -------------------- الذكاء الاصطناعي (CLIP و SIFT) --------------------
-CLIP_MODEL = None; CLIP_PROCESSOR = None; OCR_READER = None
+CLIP_MODEL = None; CLIP_PROCESSOR = None
 
 POSITIVE_PROMPTS = ["a health insurance card", "a medical insurance document", "a plastic ID card with text and logo", "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية"]
 NEGATIVE_PROMPTS = ["a car engine", "a laptop screen showing a document", "a landscape photo", "a person selfie", "a building", "a food plate", "a pet animal", "a calculator", "a wooden table", "a wall", "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي"]
-OCR_KEYWORDS = ["insured", "policy", "individual", "المؤمن له", "تأمين", "شركة", "بطاقة", "am", "amb", "dc", "ih", "in", "dv"]
 
 SIFT_CACHE = {}
 LOGO_TO_COMPANY = {}
@@ -100,15 +90,6 @@ def init_ai_models():
             CLIP_MODEL.eval()
             logger.info("✅ CLIP جاهز")
         except Exception as e: logger.error(f"❌ فشل تحميل CLIP: {e}")
-
-def load_ocr():
-    global OCR_READER
-    if OCR_AVAILABLE and OCR_READER is None:
-        try:
-            logger.info("🔍 جاري تحميل EasyOCR (قد يستغرق دقيقة)...")
-            OCR_READER = easyocr.Reader(['ar', 'en'], gpu=False)
-            logger.info("✅ EasyOCR جاهز")
-        except Exception as e: logger.error(f"❌ فشل تحميل EasyOCR: {e}")
 
 def build_logo_index():
     global SIFT_CACHE, LOGO_TO_COMPANY
@@ -173,14 +154,6 @@ def check_image_is_card(image_path):
         return pos_score > neg_score
     except: return True
 
-def check_text_is_card(image_path):
-    load_ocr() # تحميل OCR فقط عند الحاجة
-    if OCR_READER is None: return False
-    try:
-        text = " ".join(OCR_READER.readtext(image_path, detail=0)).lower()
-        return any(kw in text for kw in OCR_KEYWORDS)
-    except: return False
-
 # -------------------- إرسال الإيميل --------------------
 def send_email(recipients, subject, user_name, service_name, insured_id, company_name, messages, attachments):
     try:
@@ -219,12 +192,14 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def startup_event():
     init_db()
     build_logo_index()
-    init_ai_models() # تحميل CLIP فقط لضمان سرعة الخادم
+    init_ai_models()
 
 @app.get("/")
 async def root(): return {"message": "Insurance Bot API is running."}
 
-# 1. فحص صورة البطاقة
+@app.get("/api/test")
+async def test_endpoint(): return {"status": "success", "message": "الخادم يعمل بنجاح 🎉"}
+
 @app.post("/api/validate_card")
 async def api_validate_card(file: UploadFile = File(...)):
     temp_path = os.path.join(tempfile.gettempdir(), f"upload_{int(time.time())}.jpg")
@@ -240,15 +215,10 @@ async def api_validate_card(file: UploadFile = File(...)):
         os.remove(temp_path)
         return {"status": "success", "company_key": company_key, "company_name": company_data.get('display_name_ar')}
     
-    # إذا فشل SIFT، نجرب OCR
-    if check_text_is_card(temp_path):
-        os.remove(temp_path)
-        return {"status": "success", "company_key": None, "company_name": "غير معروفة"}
-        
+    # إذا فشل SIFT، نعتبرها بطاقة مجهولة (لأن CLIP قبلها)
     os.remove(temp_path)
-    return {"status": "error", "message": "لم نتمكن من قراءة البطاقة."}
+    return {"status": "success", "company_key": None, "company_name": "غير معروفة"}
 
-# 2. إرسال الطلب النهائي
 @app.post("/api/submit_request")
 async def api_submit_request(
     service_id: str = Form(...),
@@ -259,25 +229,21 @@ async def api_submit_request(
     message: str = Form(""),
     file: UploadFile = File(None)
 ):
-    # جمع الإيميلات
     service_emails = EMAIL_RECIPIENTS.get(service_id, [])
     company_emails = INSURANCE_COMPANIES.get(company_key, {}).get('emails', []) if company_key else []
     seen = set()
     recipients = [e for e in service_emails + company_emails if e and not (e in seen or seen.add(e))]
     if not recipients: recipients = [FALLBACK_EMAIL]
     
-    # حفظ الملف مؤقتاً
     attachments = []
     if file:
         temp_path = os.path.join(tempfile.gettempdir(), f"req_{int(time.time())}_{file.filename}")
         with open(temp_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
         attachments.append(temp_path)
     
-    # إرسال الإيميل
     messages = [message] if message else ["لا توجد رسائل نصية"]
     success, msg = send_email(recipients, "طلب", user_name, service_id, insured_id, company_name, messages, attachments)
     
-    # تنظيف
     for f in attachments:
         if os.path.exists(f): os.remove(f)
         
