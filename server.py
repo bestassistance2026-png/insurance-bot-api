@@ -38,14 +38,16 @@ FALLBACK_EMAIL = "support@company.com"
 # ⚠️ هام: نحتاج مفتاح API مجاني من Hugging Face ليعمل CLIP
 # اذهب إلى huggingface.co، وأنشئ حساباً، ثم Settings -> Access Tokens -> New Token (Read)
 # وضع المفتاح هنا:
-HUGGINGFACE_TOKEN = "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" 
+HUGGINGFACE_TOKEN = "ضع_المفتاح_هنا" 
 
 # -------------------- قاموس الشركات --------------------
 INSURANCE_COMPANIES = {
-    "1": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy""]},
-    "2": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": ["AShaar@best-assistance.net.sy""]},
-    "3": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": ["AShaar@best-assistance.net.sy""]},
-    " 4": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+   INSURANCE_COMPANIES = {
+    INSURANCE_COMPANIES = {
+    "1": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "2": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "3": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "4": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "5": {"display_name_ar": "", "display_name_en": "", "logo_files": ["6.png", "13.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "6": {"display_name_ar": "", "display_name_en": "", "logo_files": ["11.png"], "emails": ["AShaar@best-assistance.net.sy"]},
     "7": {"display_name_ar": "", "display_name_en": "", "logo_files": ["10.png"], "emails": ["AShaar@best-assistance.net.sy"]},
