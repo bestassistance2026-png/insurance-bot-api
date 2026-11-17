@@ -6,9 +6,9 @@ import logging
 import sqlite3
 import smtplib
 import ssl
+import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
 from email.header import Header
 from email.utils import formataddr
@@ -19,20 +19,11 @@ import uvicorn
 
 # استيراد مكتبات الصور
 try:
-    from PIL import Image
     import cv2
     import numpy as np
     CV_AVAILABLE = True
 except ImportError:
     CV_AVAILABLE = False
-
-# استيراد الذكاء الاصطناعي
-try:
-    from transformers import CLIPProcessor, CLIPModel
-    import torch
-    CLIP_AVAILABLE = True
-except ImportError:
-    CLIP_AVAILABLE = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,52 +35,39 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 FALLBACK_EMAIL = "support@company.com"
 
+# ⚠️ هام: نحتاج مفتاح API مجاني من Hugging Face ليعمل CLIP
+# اذهب إلى huggingface.co، وأنشئ حساباً، ثم Settings -> Access Tokens -> New Token (Read)
+# وضع المفتاح هنا:
+HUGGINGFACE_TOKEN = "ضع_المفتاح_هنا" 
+
 # -------------------- قاموس الشركات --------------------
 INSURANCE_COMPANIES = {
-    "آروب للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": [""]},
-    "المتحدة للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": [""]},
-    "لاسلامية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": [""]},
-    "العربية للتأمين ": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "الكويتية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["6.png", "13.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "اورينت للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["11.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "العقيلة للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["10.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "أدير للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["12.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "الوطنية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["2.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "السورية العربية للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["8.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "الثقة للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["5.png"], "emails": ["AShaar@best-assistance.net.sy"]},
-    "سولدارتي للتأمين": {"display_name_ar": "", "display_name_en": "", "logo_files": ["4.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "1": {"display_name_ar": "", "display_name_en": "", "logo_files": ["3.jpg"], "emails": ["AShaar@best-assistance.net.sy""]},
+    "2": {"display_name_ar": "", "display_name_en": "", "logo_files": ["1.png"], "emails": ["AShaar@best-assistance.net.sy""]},
+    "3": {"display_name_ar": "", "display_name_en": "", "logo_files": ["9.png"], "emails": ["AShaar@best-assistance.net.sy""]},
+    " 4": {"display_name_ar": "", "display_name_en": "", "logo_files": ["7.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "5": {"display_name_ar": "", "display_name_en": "", "logo_files": ["6.png", "13.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "6": {"display_name_ar": "", "display_name_en": "", "logo_files": ["11.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "7": {"display_name_ar": "", "display_name_en": "", "logo_files": ["10.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "8": {"display_name_ar": "", "display_name_en": "", "logo_files": ["12.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "9": {"display_name_ar": "", "display_name_en": "", "logo_files": ["2.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "10": {"display_name_ar": "", "display_name_en": "", "logo_files": ["8.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "11": {"display_name_ar": "", "display_name_en": "", "logo_files": ["5.png"], "emails": ["AShaar@best-assistance.net.sy"]},
+    "12": {"display_name_ar": "", "display_name_en": "", "logo_files": ["4.png"], "emails": ["AShaar@best-assistance.net.sy"]},
 }
 
-EMAIL_RECIPIENTS = {'btn1': ['ChronicPM@best-assistance.net.sy'], 'btn2': ['BANetwork@best-assistance.net.sy'], 'btn3': ['customerservice@best-assistance.net.sy'], 'btn4': ['customerservice@best-assistance.net.sy']}
+EMAIL_RECIPIENTS = {'btn1': ['amershaar24@gmail.com'], 'btn2': ['amershaar24@gmail.com'], 'btn3': ['amershaar24@gmail.com'], 'btn4': ['amershaar24@gmail.com']}
 
-# -------------------- قاعدة البيانات --------------------
 def init_db():
     conn = sqlite3.connect('conversations.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS requests 
-                 (conv_id TEXT PRIMARY KEY, service_id TEXT, insured_id TEXT, user_name TEXT, company_name TEXT, timestamp REAL)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS requests (conv_id TEXT PRIMARY KEY, service_id TEXT, insured_id TEXT, user_name TEXT, company_name TEXT, timestamp REAL)''')
     conn.commit(); conn.close()
 
-# -------------------- الذكاء الاصطناعي (CLIP و SIFT) --------------------
-CLIP_MODEL = None; CLIP_PROCESSOR = None
-
-POSITIVE_PROMPTS = ["a health insurance card", "a medical insurance document", "a plastic ID card with text and logo", "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية"]
-NEGATIVE_PROMPTS = ["a car engine", "a laptop screen showing a document", "a landscape photo", "a person selfie", "a building", "a food plate", "a pet animal", "a calculator", "a wooden table", "a wall", "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي"]
-
+# -------------------- SIFT (خفيف جداً ولا يستهلك ذاكرة) --------------------
 SIFT_CACHE = {}
 LOGO_TO_COMPANY = {}
 MIN_INLIERS = 25
-
-def init_ai_models():
-    global CLIP_MODEL, CLIP_PROCESSOR
-    if CLIP_AVAILABLE:
-        try:
-            logger.info("🧠 جاري تحميل CLIP...")
-            CLIP_MODEL = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-            CLIP_PROCESSOR = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-            CLIP_MODEL.eval()
-            logger.info("✅ CLIP جاهز")
-        except Exception as e: logger.error(f"❌ فشل تحميل CLIP: {e}")
 
 def build_logo_index():
     global SIFT_CACHE, LOGO_TO_COMPANY
@@ -138,21 +116,49 @@ def identify_company_by_logo(image_path):
         second_score = sorted_scores[1][1] if len(sorted_scores) > 1 else 0
         if best_score < MIN_INLIERS or (second_score > 0 and best_score < second_score * 1.3): return None, None
         return best_comp, INSURANCE_COMPANIES[best_comp]
-    except Exception as e:
-        logger.error(f"خطأ في SIFT: {e}")
-        return None, None
+    except: return None, None
 
-def check_image_is_card(image_path):
-    if CLIP_MODEL is None: return True
+# -------------------- CLIP API (عبر Hugging Face) --------------------
+def check_image_is_card_hf(image_path):
+    if HUGGINGFACE_TOKEN == "ضع_المفتاح_هنا":
+        logger.warning("⚠️ لم يتم وضع مفتاح HuggingFace، سيتم تخطي الفحص البصري.")
+        return True
+
+    API_URL = "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32"
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_TOKEN}"}
+    
+    labels = [
+        "a health insurance card", "a medical insurance document", "a plastic ID card with text and logo",
+        "صورة بطاقة تأمين صحي", "مستند تأمين طبي", "بطاقة تأمين", "بطاقة هوية",
+        "a car engine", "a laptop screen showing a document", "a landscape photo", "a person selfie", 
+        "a building", "a food plate", "a pet animal", "a calculator", "a wooden table", "a wall",
+        "محرك سيارة", "شاشة لابتوب", "منظر طبيعي", "صورة شخصية", "مبنى", "طبق طعام", "آلة حاسبة", "طاولة خشبية", "جدار", "bathroom", "interior design", "حمام", "تصميم داخلي"
+    ]
+    
     try:
-        image = Image.open(image_path).convert("RGB")
-        inputs = CLIP_PROCESSOR(text=POSITIVE_PROMPTS + NEGATIVE_PROMPTS, images=image, return_tensors="pt", padding=True)
-        with torch.no_grad(): probs = CLIP_MODEL(**inputs).logits_per_image.softmax(dim=1)[0]
-        pos_score = float(torch.sum(probs[:len(POSITIVE_PROMPTS)]))
-        neg_score = float(torch.sum(probs[len(POSITIVE_PROMPTS):]))
-        logger.info(f"⚖️ CLIP -> بطاقة: {pos_score:.2%} | غير بطاقة: {neg_score:.2%}")
-        return pos_score > neg_score
-    except: return True
+        with open(image_path, "rb") as f:
+            data = f.read()
+            
+        payload = {"inputs": data, "parameters": {"candidate_labels": labels}}
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            results = response.json()
+            # النتيجة تأتي كقائمة مرتبة بأعلى نسبة تشابه
+            best_label = results[0]['label']
+            score = results[0]['score']
+            logger.info(f"⚖️ CLIP (API) -> {best_label} ({score:.2%})")
+            
+            # إذا كان أفضل وصف هو أحد أوصاف الرفض
+            if best_label in labels[7:]: # أوصاف الرفض تبدأ من العنصر رقم 7
+                return False
+            return True
+        else:
+            logger.error(f"خطأ في API: {response.text}")
+            return True # نمرر الصورة في حال فشل الاتصال
+    except Exception as e:
+        logger.error(f"خطأ في الاتصال بـ HuggingFace: {e}")
+        return True
 
 # -------------------- إرسال الإيميل --------------------
 def send_email(recipients, subject, user_name, service_name, insured_id, company_name, messages, attachments):
@@ -192,7 +198,6 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def startup_event():
     init_db()
     build_logo_index()
-    init_ai_models()
 
 @app.get("/")
 async def root(): return {"message": "Insurance Bot API is running."}
@@ -205,7 +210,7 @@ async def api_validate_card(file: UploadFile = File(...)):
     temp_path = os.path.join(tempfile.gettempdir(), f"upload_{int(time.time())}.jpg")
     with open(temp_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
     
-    if not check_image_is_card(temp_path):
+    if not check_image_is_card_hf(temp_path):
         os.remove(temp_path)
         return {"status": "error", "message": "الصورة لا تبدو كبطاقة تأمين."}
         
@@ -215,7 +220,6 @@ async def api_validate_card(file: UploadFile = File(...)):
         os.remove(temp_path)
         return {"status": "success", "company_key": company_key, "company_name": company_data.get('display_name_ar')}
     
-    # إذا فشل SIFT، نعتبرها بطاقة مجهولة (لأن CLIP قبلها)
     os.remove(temp_path)
     return {"status": "success", "company_key": None, "company_name": "غير معروفة"}
 
